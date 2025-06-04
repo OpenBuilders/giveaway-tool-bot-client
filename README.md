@@ -1,6 +1,6 @@
 # Channel Tracking 
 
-Еtracking channel additions and removals in Telegram.
+Tracking bot for channel additions and removals
 
 ## Features
 
