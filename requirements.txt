@@ -1,0 +1,5 @@
+telethon==1.32.1
+redis==5.0.1
+python-dotenv==1.0.0
+loguru==0.7.2
+typing-extensions==4.9.0 
