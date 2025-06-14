@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Optional
 from redis import Redis
 from .config import Config
 
@@ -38,4 +38,14 @@ class RedisStorage:
             if str(channel_id) in self.redis_client.smembers(key):
                 users.add(user_id)
                 
-        return users 
+        return users
+
+    def save_channel_avatar(self, channel_id: int, avatar_url: str) -> None:
+        """Save channel avatar URL to Redis"""
+        key = f"channel:{channel_id}:avatar"
+        self.redis_client.set(key, avatar_url)
+
+    def get_channel_avatar(self, channel_id: int) -> Optional[str]:
+        """Get channel avatar URL from Redis"""
+        key = f"channel:{channel_id}:avatar"
+        return self.redis_client.get(key) 

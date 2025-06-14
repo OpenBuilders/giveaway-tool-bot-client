@@ -12,4 +12,8 @@ class Config:
     REDIS_DB = int(os.getenv('REDIS_DB', 0))
     
     # App configuration
-    APP_URL = os.getenv('APP_URL', 'https://t.me/stage_give_bot?startapp') 
+    APP_URL = os.getenv('APP_URL', 'https://t.me/stage_give_bot?startapp')
+    
+    # CDN configuration
+    CDN_URL = os.getenv('CDN_URL', 'https://cdn.example.com')  # Базовый URL вашего CDN
+    CDN_API_KEY = os.getenv('CDN_API_KEY')  # API ключ для загрузки в CDN 
