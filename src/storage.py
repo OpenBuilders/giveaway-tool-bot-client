@@ -48,4 +48,14 @@ class RedisStorage:
     def get_channel_avatar(self, channel_id: int) -> Optional[str]:
         """Get channel avatar URL from Redis"""
         key = f"channel:{channel_id}:avatar"
+        return self.redis_client.get(key)
+
+    def save_channel_title(self, channel_id: int, title: str) -> None:
+        """Save channel title to Redis"""
+        key = f"channel:{channel_id}:title"
+        self.redis_client.set(key, title)
+
+    def get_channel_title(self, channel_id: int) -> Optional[str]:
+        """Get channel title from Redis"""
+        key = f"channel:{channel_id}:title"
         return self.redis_client.get(key) 

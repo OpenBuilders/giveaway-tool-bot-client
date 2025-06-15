@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING
 from telethon import events, TelegramClient
-from telethon.tl.types import User, Channel
+from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelParticipantCreator
+from telethon.tl.functions.channels import GetParticipantsRequest
+from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
 import aiohttp
-import io
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -43,6 +44,21 @@ class ChatEventHandler:
         except Exception as e:
             logger.error(f"Error in chat action handler: {str(e)}")
 
+    async def _get_channel_admins(self, chat: Channel) -> list[int]:
+        """Get list of channel admin IDs"""
+        try:
+            admins = []
+            async for participant in self.client.iter_participants(
+                chat,
+                filter=ChannelParticipantsAdmins
+            ):
+                if isinstance(participant.participant, (ChannelParticipantAdmin, ChannelParticipantCreator)):
+                    admins.append(participant.id)
+            return admins
+        except Exception as e:
+            logger.error(f"Error getting channel admins: {str(e)}")
+            return []
+
     async def _handle_bot_added(self, event: events.ChatAction.Event, me: User) -> None:
         """Handle bot being added to a channel"""
         try:
@@ -53,11 +69,19 @@ class ChatEventHandler:
                     chat_id = self._normalize_channel_id(chat.id)
                     user_id = event.added_by.id
                     
-                    # Получаем и сохраняем аватарку канала
+                    # Сохраняем название канала
+                    self.storage.save_channel_title(chat_id, chat.title)
+                    
+                    # Получаем и сохраняем администраторов
+                    admins = await self._get_channel_admins(chat)
+                    for admin_id in admins:
+                        self.storage.add_channel_for_user(admin_id, chat_id)
+                        logger.info(f"Added channel {chat_id} for admin {admin_id}")
+                    
                     await self._save_channel_avatar(chat)
                     
                     self.storage.add_channel_for_user(user_id, chat_id)
-                    logger.info(f"Bot was added to channel {chat_id} by user {user_id}")
+                    logger.info(f"Bot was added to channel {chat_id} ({chat.title}) by user {user_id}")
 
         except Exception as e:
             logger.error(f"Error handling bot addition: {str(e)}")
@@ -65,22 +89,17 @@ class ChatEventHandler:
     async def _save_channel_avatar(self, chat: Channel) -> None:
         """Save channel avatar to CDN and store URL in Redis"""
         try:
-            # Получаем фотографии профиля канала
             photos = await self.client.get_profile_photos(chat)
             
             if photos:
-                # Берем первую (самую последнюю) фотографию
                 photo = photos[0]
                 
-                # Получаем данные фотографии в памяти
                 photo_data = await self.client.download_media(photo, bytes)
                 
                 if photo_data:
-                    # Загружаем в CDN
                     cdn_url = await self._upload_to_cdn(photo_data, f"channel_{chat.id}_avatar.jpg")
                     
                     if cdn_url:
-                        # Сохраняем URL в Redis
                         self.storage.save_channel_avatar(chat.id, cdn_url)
                         logger.info(f"Channel {chat.id} avatar saved to CDN successfully")
                     else:
@@ -97,19 +116,16 @@ class ChatEventHandler:
         """Upload file to CDN and return URL"""
         try:
             async with aiohttp.ClientSession() as session:
-                # Создаем FormData для загрузки файла
                 data = aiohttp.FormData()
                 data.add_field('file',
                              file_data,
                              filename=filename,
                              content_type='image/jpeg')
                 
-                # Добавляем API ключ в заголовки
                 headers = {
                     'Authorization': f'Bearer {Config.CDN_API_KEY}'
                 }
                 
-                # Отправляем файл на CDN
                 async with session.post(
                     f"{Config.CDN_URL}/upload",
                     data=data,
@@ -117,7 +133,7 @@ class ChatEventHandler:
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        return result.get('url')  # Предполагаем, что CDN возвращает URL в поле 'url'
+                        return result.get('url')
                     else:
                         logger.error(f"CDN upload failed with status {response.status}")
                         return None
