@@ -40,16 +40,6 @@ class RedisStorage:
                 
         return users
 
-    def save_channel_avatar(self, channel_id: int, avatar_url: str) -> None:
-        """Save channel avatar URL to Redis"""
-        key = f"channel:{channel_id}:avatar"
-        self.redis_client.set(key, avatar_url)
-
-    def get_channel_avatar(self, channel_id: int) -> Optional[str]:
-        """Get channel avatar URL from Redis"""
-        key = f"channel:{channel_id}:avatar"
-        return self.redis_client.get(key)
-
     def save_channel_title(self, channel_id: int, title: str) -> None:
         """Save channel title to Redis"""
         key = f"channel:{channel_id}:title"

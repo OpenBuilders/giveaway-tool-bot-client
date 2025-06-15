@@ -4,9 +4,6 @@ from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelPar
 from telethon.tl.functions.channels import GetParticipantsRequest, LeaveChannelRequest
 from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
-import boto3
-from botocore.config import Config as BotoConfig
-import io
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -18,15 +15,6 @@ class ChatEventHandler:
         self.bot = bot
         self.client = bot.client
         self.storage = bot.storage
-        
-        # Инициализация S3 клиента
-        self.s3_client = boto3.client(
-            's3',
-            endpoint_url=Config.S3_ENDPOINT,
-            aws_access_key_id=Config.S3_ACCESS_KEY,
-            aws_secret_access_key=Config.S3_SECRET_KEY,
-            config=BotoConfig(signature_version='s3v4')
-        )
 
     async def register(self) -> None:
         """Register all chat event handlers"""
@@ -103,59 +91,11 @@ class ChatEventHandler:
                         self.storage.add_channel_for_user(admin_id, chat_id)
                         logger.info(f"Added channel {chat_id} for admin {admin_id}")
                     
-                    await self._save_channel_avatar(chat)
-                    
                     self.storage.add_channel_for_user(user_id, chat_id)
                     logger.info(f"Bot was added to channel {chat_id} ({chat.title}) by user {user_id}")
 
         except Exception as e:
             logger.error(f"Error handling bot addition: {str(e)}")
-
-    async def _save_channel_avatar(self, chat: Channel) -> None:
-        """Save channel avatar to CDN and store URL in Redis"""
-        try:
-            photos = await self.client.get_profile_photos(chat)
-            
-            if photos:
-                photo = photos[0]
-                
-                photo_data = await self.client.download_media(photo, bytes)
-                
-                if photo_data:
-                    cdn_url = await self._upload_to_cdn(photo_data, f"channel_{chat.id}_avatar.jpg")
-                    
-                    if cdn_url:
-                        self.storage.save_channel_avatar(chat.id, cdn_url)
-                        logger.info(f"Channel {chat.id} avatar saved to CDN successfully")
-                    else:
-                        logger.error(f"Failed to upload avatar to CDN for channel {chat.id}")
-                else:
-                    logger.warning(f"Could not download avatar for channel {chat.id}")
-            else:
-                logger.warning(f"No avatar found for channel {chat.id}")
-                
-        except Exception as e:
-            logger.error(f"Error saving channel avatar: {str(e)}")
-
-    async def _upload_to_cdn(self, file_data: bytes, filename: str) -> str:
-        """Upload file to S3 CDN and return URL"""
-        try:
-            # Загружаем файл в S3
-            self.s3_client.put_object(
-                Bucket=Config.S3_BUCKET,
-                Key=filename,
-                Body=file_data,
-                ContentType='image/jpeg',
-                ACL='public-read'
-            )
-            
-            # Формируем URL для CDN
-            cdn_url = f"{Config.CDN_URL}/{filename}"
-            return cdn_url
-                        
-        except Exception as e:
-            logger.error(f"Error uploading to CDN: {str(e)}")
-            return None
 
     async def _handle_bot_kicked(self, event: events.ChatAction.Event, me: User) -> None:
         """Handle bot being removed from a channel"""
