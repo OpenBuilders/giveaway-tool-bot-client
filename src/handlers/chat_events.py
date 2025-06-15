@@ -4,7 +4,9 @@ from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelPar
 from telethon.tl.functions.channels import GetParticipantsRequest, LeaveChannelRequest
 from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
-import aiohttp
+import boto3
+from botocore.config import Config as BotoConfig
+import io
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -16,6 +18,15 @@ class ChatEventHandler:
         self.bot = bot
         self.client = bot.client
         self.storage = bot.storage
+        
+        # Инициализация S3 клиента
+        self.s3_client = boto3.client(
+            's3',
+            endpoint_url=Config.S3_ENDPOINT,
+            aws_access_key_id=Config.S3_ACCESS_KEY,
+            aws_secret_access_key=Config.S3_SECRET_KEY,
+            config=BotoConfig(signature_version='s3v4')
+        )
 
     async def register(self) -> None:
         """Register all chat event handlers"""
@@ -127,30 +138,20 @@ class ChatEventHandler:
             logger.error(f"Error saving channel avatar: {str(e)}")
 
     async def _upload_to_cdn(self, file_data: bytes, filename: str) -> str:
-        """Upload file to CDN and return URL"""
+        """Upload file to S3 CDN and return URL"""
         try:
-            async with aiohttp.ClientSession() as session:
-                data = aiohttp.FormData()
-                data.add_field('file',
-                             file_data,
-                             filename=filename,
-                             content_type='image/jpeg')
-                
-                headers = {
-                    'Authorization': f'Bearer {Config.CDN_API_KEY}'
-                }
-                
-                async with session.post(
-                    f"{Config.CDN_URL}/upload",
-                    data=data,
-                    headers=headers
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        return result.get('url')
-                    else:
-                        logger.error(f"CDN upload failed with status {response.status}")
-                        return None
+            # Загружаем файл в S3
+            self.s3_client.put_object(
+                Bucket=Config.S3_BUCKET,
+                Key=filename,
+                Body=file_data,
+                ContentType='image/jpeg',
+                ACL='public-read'
+            )
+            
+            # Формируем URL для CDN
+            cdn_url = f"{Config.CDN_URL}/{filename}"
+            return cdn_url
                         
         except Exception as e:
             logger.error(f"Error uploading to CDN: {str(e)}")

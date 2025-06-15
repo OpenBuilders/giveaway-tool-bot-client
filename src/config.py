@@ -14,6 +14,9 @@ class Config:
     # App configuration
     APP_URL = os.getenv('APP_URL', 'https://t.me/stage_give_bot?startapp')
     
-    # CDN configuration
-    CDN_URL = os.getenv('CDN_URL', 'https://cdn.example.com')  # Базовый URL вашего CDN
-    CDN_API_KEY = os.getenv('CDN_API_KEY')  # API ключ для загрузки в CDN 
+    # S3 CDN configuration
+    S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
+    S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
+    S3_BUCKET = os.getenv('S3_BUCKET')
+    S3_ENDPOINT = os.getenv('S3_ENDPOINT')
+    CDN_URL = os.getenv('CDN_URL')
