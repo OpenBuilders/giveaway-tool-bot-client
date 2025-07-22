@@ -68,11 +68,13 @@ class ChatEventHandler:
                     chat_id = self._normalize_channel_id(chat.id)
                     user_id = event.added_by.id
 
-                    # Проверяем, является ли канал публичным
+                    # Check if the channel is public
                     if not chat.username:
-                        # Если канал не публичный, выходим из него
+                        # If the channel is not public, leave it
                         await self.client(LeaveChannelRequest(chat))
-                        # Отправляем сообщение пользователю
+                        # Send a message to the user
+                        #   "Sorry, I can only work with public channels. "
+                        #   "Please make the channel public and add me again."
                         await self.client.send_message(
                             user_id,
                             "Извините, но я могу работать только с публичными каналами. "
@@ -81,11 +83,11 @@ class ChatEventHandler:
                         logger.warning(f"Bot left private channel {chat_id} ({chat.title})")
                         return
 
-                    # Сохраняем информацию о канале
+                    # Save channel information
                     self.storage.save_channel_title(chat_id, chat.title)
                     self.storage.save_channel_username(chat_id, chat.username)
                     
-                    # Получаем и сохраняем администраторов
+                    # Get and save administrators
                     admins = await self._get_channel_admins(chat)
                     for admin_id in admins:
                         self.storage.add_channel_for_user(admin_id, chat_id)
