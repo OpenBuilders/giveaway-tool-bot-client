@@ -1,4 +1,4 @@
-from typing import List, Set, Optional
+from typing import Set, Optional
 from redis import Redis
 from .config import Config
 
