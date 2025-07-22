@@ -1,14 +1,13 @@
 from typing import TYPE_CHECKING
-from telethon import events, TelegramClient
+from telethon import events
 from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelParticipantCreator
-from telethon.tl.functions.channels import GetParticipantsRequest, LeaveChannelRequest
+from telethon.tl.functions.channels import LeaveChannelRequest
 from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
 
 if TYPE_CHECKING:
     from ..bot import Bot
 
-from ..config import Config
 
 class ChatEventHandler:
     def __init__(self, bot: "Bot") -> None:
