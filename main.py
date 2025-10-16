@@ -1,15 +1,12 @@
 from loguru import logger
 from src.bot import Bot
+import sys
 
 if __name__ == "__main__":
     try:
-        # Configure logger
-        logger.add(
-            "logs/bot.log",
-            rotation="1 day",
-            retention="7 days",
-            level="INFO"
-        )
+        # Configure logger to stdout
+        logger.remove()
+        logger.add(sys.stdout, level="INFO")
         
         # Start bot
         bot = Bot()

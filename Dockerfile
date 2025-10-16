@@ -17,8 +17,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Create logs directory
-RUN mkdir -p logs
 
 # Run the bot
 CMD ["python", "main.py"] 

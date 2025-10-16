@@ -4,7 +4,6 @@ services:
   bot:
     build: .
     volumes:
-      - ./logs:/app/logs
       - ./.env:/app/.env:ro
     depends_on:
       - redis
