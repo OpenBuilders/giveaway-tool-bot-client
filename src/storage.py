@@ -12,6 +12,14 @@ class RedisStorage:
             decode_responses=True
         )
 
+    def get_bot_session(self) -> Optional[str]:
+        """Get StringSession for the bot from Redis"""
+        return self.redis_client.get("bot:session")
+
+    def save_bot_session(self, session: str) -> None:
+        """Save StringSession for the bot to Redis"""
+        self.redis_client.set("bot:session", session)
+
     def add_channel_for_user(self, user_id: int, channel_id: int) -> None:
         """Add channel to user's channel list"""
         key = f"user:{user_id}:channels"
