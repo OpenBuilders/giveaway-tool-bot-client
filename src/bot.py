@@ -12,7 +12,6 @@ class Bot:
         """Initialize bot instance"""
         self.storage: RedisStorage = RedisStorage()
 
-        # Load or create StringSession from Redis to avoid local SQLite
         existing_session = self.storage.get_bot_session()
         session = StringSession(existing_session) if existing_session else StringSession()
 
@@ -22,7 +21,6 @@ class Bot:
             Config.API_HASH
         ).start(bot_token=Config.BOT_TOKEN)
 
-        # Persist session string if it was newly created
         if not existing_session:
             try:
                 self.storage.save_bot_session(self.client.session.save())

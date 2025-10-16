@@ -13,3 +13,4 @@ class Config:
     
     # App configuration
     APP_URL = os.getenv('APP_URL', 'https://t.me/stage_give_bot?startapp')
+    HEALTH_PORT = int(os.getenv('HEALTH_PORT', 8080))
