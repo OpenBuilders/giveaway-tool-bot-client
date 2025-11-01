@@ -3,6 +3,9 @@ from telethon import events
 from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelParticipantCreator
 from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
+import json
+from urllib.request import urlopen
+from urllib.parse import urlencode
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -69,6 +72,54 @@ class ChatEventHandler:
                     # Сохраняем информацию о канале
                     self.storage.save_channel_title(chat_id, chat.title)
                     self.storage.save_channel_username(chat_id, chat.username or "")
+
+                    # Сохраняем URL: публичный t.me для public, инвайт для private
+                    url_to_save = ""
+                    if chat.username:
+                        url_to_save = f"https://t.me/{chat.username}"
+                    else:
+                        try:
+                            url_to_save = await self.client.export_chat_invite_link(chat)
+                        except Exception as e:
+                            logger.warning(f"Failed to export invite link for channel {chat_id}: {str(e)}")
+                            url_to_save = ""
+                    self.storage.save_channel_url(chat_id, url_to_save)
+
+                    # Получаем URL аватара канала из Bot API (если есть)
+                    try:
+                        bot_token = self.bot.client._bot_token  # Telethon stores token internally for bot sessions
+                        if bot_token:
+                            base = f"https://api.telegram.org/bot{bot_token}"
+                            # getChat -> photo file_ids
+                            get_chat_qs = urlencode({"chat_id": chat_id})
+                            with urlopen(f"{base}/getChat?{get_chat_qs}") as resp:
+                                data = json.loads(resp.read().decode("utf-8"))
+                            if data.get("ok") and data["result"].get("photo"):
+                                photo = data["result"]["photo"]
+                                small_id = photo.get("small_file_id")
+                                big_id = photo.get("big_file_id")
+                                small_url = ""
+                                big_url = ""
+                                if small_id:
+                                    qs = urlencode({"file_id": small_id})
+                                    with urlopen(f"{base}/getFile?{qs}") as f1:
+                                        f1d = json.loads(f1.read().decode("utf-8"))
+                                    if f1d.get("ok") and f1d["result"].get("file_path"):
+                                        small_url = f"https://api.telegram.org/file/bot{bot_token}/{f1d['result']['file_path']}"
+                                if big_id:
+                                    qs = urlencode({"file_id": big_id})
+                                    with urlopen(f"{base}/getFile?{qs}") as f2:
+                                        f2d = json.loads(f2.read().decode("utf-8"))
+                                    if f2d.get("ok") and f2d["result"].get("file_path"):
+                                        big_url = f"https://api.telegram.org/file/bot{bot_token}/{f2d['result']['file_path']}"
+
+                                if small_url:
+                                    self.storage.save_channel_photo_small_url(chat_id, small_url)
+                                if big_url:
+                                    self.storage.save_channel_photo_big_url(chat_id, big_url)
+                    except Exception as e:
+                        # Возможны ошибки сети/доступа; просто логируем
+                        logger.warning(f"Failed to fetch channel photo URLs for {chat_id}: {str(e)}")
                     
                     # Получаем и сохраняем администраторов
                     admins = await self._get_channel_admins(chat)

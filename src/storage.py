@@ -67,3 +67,33 @@ class RedisStorage:
         """Get channel username from Redis"""
         key = f"channel:{channel_id}:username"
         return self.redis_client.get(key) 
+
+    def save_channel_url(self, channel_id: int, url: str) -> None:
+        """Save channel URL (public t.me link or private invite) to Redis"""
+        key = f"channel:{channel_id}:url"
+        self.redis_client.set(key, url)
+
+    def get_channel_url(self, channel_id: int) -> Optional[str]:
+        """Get channel URL (public t.me link or private invite) from Redis"""
+        key = f"channel:{channel_id}:url"
+        return self.redis_client.get(key)
+
+    def save_channel_photo_small_url(self, channel_id: int, url: str) -> None:
+        """Save small profile photo URL for the channel to Redis"""
+        key = f"channel:{channel_id}:photo_small_url"
+        self.redis_client.set(key, url)
+
+    def get_channel_photo_small_url(self, channel_id: int) -> Optional[str]:
+        """Get small profile photo URL for the channel from Redis"""
+        key = f"channel:{channel_id}:photo_small_url"
+        return self.redis_client.get(key)
+
+    def save_channel_photo_big_url(self, channel_id: int, url: str) -> None:
+        """Save big profile photo URL for the channel to Redis"""
+        key = f"channel:{channel_id}:photo_big_url"
+        self.redis_client.set(key, url)
+
+    def get_channel_photo_big_url(self, channel_id: int) -> Optional[str]:
+        """Get big profile photo URL for the channel from Redis"""
+        key = f"channel:{channel_id}:photo_big_url"
+        return self.redis_client.get(key)
