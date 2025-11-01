@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 from telethon import events
 from telethon.tl.types import User, Channel, ChannelParticipantAdmin, ChannelParticipantCreator
-from telethon.tl.functions.channels import LeaveChannelRequest
 from telethon.tl.types import ChannelParticipantsAdmins
 from loguru import logger
 
@@ -67,22 +66,9 @@ class ChatEventHandler:
                     chat_id = self._normalize_channel_id(chat.id)
                     user_id = event.added_by.id
 
-                    # Проверяем, является ли канал публичным
-                    if not chat.username:
-                        # Если канал не публичный, выходим из него
-                        await self.client(LeaveChannelRequest(chat))
-                        # Отправляем сообщение пользователю
-                        await self.client.send_message(
-                            user_id,
-                            "Извините, но я могу работать только с публичными каналами. "
-                            "Пожалуйста, сделайте канал публичным и добавьте меня снова."
-                        )
-                        logger.warning(f"Bot left private channel {chat_id} ({chat.title})")
-                        return
-
                     # Сохраняем информацию о канале
                     self.storage.save_channel_title(chat_id, chat.title)
-                    self.storage.save_channel_username(chat_id, chat.username)
+                    self.storage.save_channel_username(chat_id, chat.username or "")
                     
                     # Получаем и сохраняем администраторов
                     admins = await self._get_channel_admins(chat)
