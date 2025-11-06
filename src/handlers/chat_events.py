@@ -6,6 +6,7 @@ from loguru import logger
 import json
 from urllib.request import urlopen
 from urllib.parse import urlencode
+from ..config import Config
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -79,7 +80,14 @@ class ChatEventHandler:
                         url_to_save = f"https://t.me/{chat.username}"
                     else:
                         try:
-                            url_to_save = await self.client.export_chat_invite_link(chat)
+                            base = f"https://api.telegram.org/bot{Config.BOT_TOKEN}"
+                            qs = urlencode({"chat_id": chat_id})
+                            with urlopen(f"{base}/exportChatInviteLink?{qs}") as resp:
+                                data = json.loads(resp.read().decode("utf-8"))
+                            if data.get("ok") and data.get("result"):
+                                url_to_save = data["result"]
+                            else:
+                                raise RuntimeError(data)
                         except Exception as e:
                             logger.warning(f"Failed to export invite link for channel {chat_id}: {str(e)}")
                             url_to_save = ""
@@ -87,7 +95,7 @@ class ChatEventHandler:
 
                     # Получаем URL аватара канала из Bot API (если есть)
                     try:
-                        bot_token = self.bot.client._bot_token  # Telethon stores token internally for bot sessions
+                        bot_token = Config.BOT_TOKEN
                         if bot_token:
                             base = f"https://api.telegram.org/bot{bot_token}"
                             # getChat -> photo file_ids
