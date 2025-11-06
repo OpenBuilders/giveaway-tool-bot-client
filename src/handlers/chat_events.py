@@ -81,17 +81,39 @@ class ChatEventHandler:
                     else:
                         try:
                             base = f"https://api.telegram.org/bot{Config.BOT_TOKEN}"
-                            qs = urlencode({"chat_id": chat_id})
-                            with urlopen(f"{base}/exportChatInviteLink?{qs}") as resp:
-                                data = json.loads(resp.read().decode("utf-8"))
-                            if data.get("ok") and data.get("result"):
-                                url_to_save = data["result"]
+                            # 1) Пытаемся получить текущую primary invite ссылку через getChat
+                            get_chat_qs = urlencode({"chat_id": chat_id})
+                            with urlopen(f"{base}/getChat?{get_chat_qs}") as resp:
+                                chat_data = json.loads(resp.read().decode("utf-8"))
+                            invite_link = chat_data.get("result", {}).get("invite_link") if chat_data.get("ok") else None
+                            if invite_link:
+                                url_to_save = invite_link
                             else:
-                                raise RuntimeError(data)
+                                # 2) Если нет — создаём новую через createChatInviteLink (современный метод)
+                                create_qs = urlencode({"chat_id": chat_id})
+                                with urlopen(f"{base}/createChatInviteLink?{create_qs}") as resp2:
+                                    create_data = json.loads(resp2.read().decode("utf-8"))
+                                if create_data.get("ok") and create_data.get("result", {}).get("invite_link"):
+                                    url_to_save = create_data["result"]["invite_link"]
+                                else:
+                                    # 3) На крайний случай пробуем exportChatInviteLink (устаревший для SG/каналов)
+                                    export_qs = urlencode({"chat_id": chat_id})
+                                    with urlopen(f"{base}/exportChatInviteLink?{export_qs}") as resp3:
+                                        export_data = json.loads(resp3.read().decode("utf-8"))
+                                    if export_data.get("ok") and export_data.get("result"):
+                                        url_to_save = export_data["result"]
+                                    else:
+                                        raise RuntimeError({
+                                            "getChat": chat_data,
+                                            "createChatInviteLink": create_data,
+                                            "exportChatInviteLink": export_data,
+                                        })
                         except Exception as e:
                             logger.warning(f"Failed to export invite link for channel {chat_id}: {str(e)}")
                             url_to_save = ""
                     self.storage.save_channel_url(chat_id, url_to_save)
+                    if url_to_save:
+                        logger.info(f"Saved invite URL for channel {chat_id}")
 
                     # Получаем URL аватара канала из Bot API (если есть)
                     try:
