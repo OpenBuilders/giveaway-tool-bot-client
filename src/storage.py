@@ -1,6 +1,7 @@
-from typing import Set, Optional
+from typing import Set, Optional, Dict
 from redis import Redis
 from .config import Config
+import json
 
 class RedisStorage:
     def __init__(self) -> None:
@@ -97,3 +98,52 @@ class RedisStorage:
         """Get big profile photo URL for the channel from Redis"""
         key = f"channel:{channel_id}:photo_big_url"
         return self.redis_client.get(key)
+
+    # ---- Chat boosts - упрощенная структура с хранением по ключу канала ----
+    def add_channel_boost_user(self, channel_id: int, user_id: int) -> None:
+        """Добавить пользователя в список тех, кто пробустил канал.
+        
+        Структура: channel:{channel_id}:boost_users содержит Set user_id
+        """
+        key = f"channel:{channel_id}:boost_users"
+        self.redis_client.sadd(key, int(user_id))
+
+    def remove_channel_boost_user(self, channel_id: int, user_id: int) -> None:
+        """Удалить пользователя из списка тех, кто пробустил канал."""
+        key = f"channel:{channel_id}:boost_users"
+        self.redis_client.srem(key, int(user_id))
+
+    def has_channel_boost_user(self, channel_id: int, user_id: int) -> bool:
+        """Проверить, есть ли пользователь в списке пробустивших канал."""
+        key = f"channel:{channel_id}:boost_users"
+        return bool(self.redis_client.sismember(key, int(user_id)))
+
+    def get_channel_boost_users(self, channel_id: int) -> Set[int]:
+        """Получить всех пользователей, которые пробустили канал."""
+        key = f"channel:{channel_id}:boost_users"
+        members = self.redis_client.smembers(key)
+        return {int(uid) for uid in members}
+    
+    # ---- Детальная информация о бустах (опционально, для истории) ----
+    def save_chat_boost_details(self, channel_id: int, boost_id: str, user_id: int,
+                                 add_date: Optional[int], expire_date: Optional[int], payload: Dict) -> None:
+        """Сохранить детальную информацию о бусте (опционально)."""
+        boost_key = f"boost:{boost_id}"
+        self.redis_client.hset(boost_key, mapping={
+            "channel_id": channel_id,
+            "user_id": user_id,
+            "add_date": add_date if add_date is not None else "",
+            "expire_date": expire_date if expire_date is not None else "",
+            "status": "active",
+            "raw": json.dumps(payload, ensure_ascii=False),
+        })
+
+    def remove_chat_boost_details(self, boost_id: str, remove_date: Optional[int], payload: Dict) -> None:
+        """Обновить информацию о бусте как удаленном (опционально)."""
+        boost_key = f"boost:{boost_id}"
+        mapping = {
+            "remove_date": remove_date if remove_date is not None else "",
+            "status": "removed",
+            "raw_removed": json.dumps(payload, ensure_ascii=False),
+        }
+        self.redis_client.hset(boost_key, mapping=mapping)
