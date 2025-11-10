@@ -357,7 +357,7 @@ class ChatEventHandler:
             self.storage.add_channel_boost_user(norm_chat_id, int(user_id))
             
             # Опционально сохраняем детальную информацию о бусте
-            self.storage.save_chat_boost_details(norm_chat_id, str(boost_id), int(user_id), add_date, expire_date, chat_boost)
+            # self.storage.save_chat_boost_details(norm_chat_id, str(boost_id), int(user_id), add_date, expire_date, chat_boost)
 
             logger.info(f"Chat boost received for chat {norm_chat_id} from user {user_id} (boost_id={boost_id})")
         except Exception as e:
