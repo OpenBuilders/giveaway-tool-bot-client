@@ -290,10 +290,11 @@ class ChatEventHandler:
                 kicked_by = event.original_update.actor_id
                 
                 users = self.storage.get_users_with_channel(chat_id)
-                print("users", users)
                 for user_id in users:
-                    print("user_id", user_id)
                     self.storage.remove_channel_for_user(user_id, chat_id)
+
+                # Push event to Redis Stream
+                self.storage.publish_bot_removed(chat_id)
 
                 logger.info(f"Bot was removed from channel {chat_id} by user {kicked_by}")
 

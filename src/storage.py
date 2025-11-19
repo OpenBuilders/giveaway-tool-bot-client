@@ -147,3 +147,13 @@ class RedisStorage:
             "raw_removed": json.dumps(payload, ensure_ascii=False),
         }
         self.redis_client.hset(boost_key, mapping=mapping)
+
+    def publish_bot_removed(self, channel_id: int) -> None:
+        """Publish event about bot removal from a channel to Redis Stream."""
+        stream_key = "bot:events"
+        event = {
+            "type": "bot_removed",
+            "channel_id": str(channel_id)
+        }
+        # xadd returns the ID of the added entry, but we don't need it here
+        self.redis_client.xadd(stream_key, event)
