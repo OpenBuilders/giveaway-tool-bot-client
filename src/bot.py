@@ -2,6 +2,7 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 from loguru import logger
 from typing import Optional
+import os
 
 from .config import Config
 from .storage import RedisStorage
@@ -37,6 +38,49 @@ class Bot:
         
         await self.chat_handler.register()
         await self.command_handler.register()
+        
+        # Initialize Start video
+        try:
+            if not self.storage.get_start_video():
+                video_path = "media/Giveaway.mp4"
+                if os.path.exists(video_path):
+                    logger.info(f"Uploading {video_path} to Telegram servers...")
+                    
+                    # Get video attributes
+                    from telethon.utils import get_attributes
+                    attributes = get_attributes(video_path)
+                    
+                    uploaded = await self.client.upload_file(video_path)
+                    
+                    data = {
+                        "id": uploaded.id,
+                        "parts": uploaded.parts,
+                        "name": uploaded.name,
+                        "type": "input_file"
+                    }
+                    if hasattr(uploaded, 'md5_checksum'):
+                        data['md5'] = uploaded.md5_checksum
+                    
+                    # Serialize attributes for storage
+                    serialized_attributes = []
+                    for attr in attributes:
+                        if hasattr(attr, 'to_dict'):
+                            serialized_attributes.append({'_': attr.__class__.__name__, **attr.to_dict()})
+                        else:
+                            # Fallback for simpler serialization if needed, or custom handling
+                            pass
+                            
+                    # For now, we'll store basic metadata if needed, but telethon might need raw attributes.
+                    # Actually, storing the InputFile is enough, we can re-create attributes or let telethon infer.
+                    # But for video, it's good to have width/height/duration.
+                    # Let's just save the file ID details for now.
+                    
+                    self.storage.save_start_video(data)
+                    logger.info("Start video uploaded and ID saved to Redis")
+                else:
+                    logger.warning(f"{video_path} not found")
+        except Exception as e:
+            logger.error(f"Failed to initialize Start video: {str(e)}")
         
         logger.info("Bot handlers registered successfully")
 

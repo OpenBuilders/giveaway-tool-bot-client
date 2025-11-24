@@ -157,3 +157,12 @@ class RedisStorage:
         }
         # xadd returns the ID of the added entry, but we don't need it here
         self.redis_client.xadd(stream_key, event)
+
+    def save_start_video(self, data: Dict) -> None:
+        """Save start video data to Redis"""
+        self.redis_client.set("bot:start_video", json.dumps(data))
+
+    def get_start_video(self) -> Optional[Dict]:
+        """Get start video data from Redis"""
+        data = self.redis_client.get("bot:start_video")
+        return json.loads(data) if data else None
