@@ -41,6 +41,7 @@ class CommandHandler:
             ]
 
             file_to_send = "https://cdn.giveaway.tools.tg/assets/Started.gif"
+            use_cached = False
             
             cached_video = self.bot.storage.get_start_video()
             if cached_video:
@@ -59,32 +60,46 @@ class CommandHandler:
                                 parts=cached_video['parts'],
                                 name=cached_video['name']
                             )
+                        use_cached = True
                 except Exception as e:
-                    logger.error(f"Failed to reconstruct cached video: {e}")
+                    logger.warning(f"Failed to reconstruct cached video: {e}, falling back to URL")
+                    # Очищаем невалидный кэш
+                    self.bot.storage.delete_start_video()
             
-            # await self.client.send_file(
-            #     event.chat_id,
-            #     file=file_to_send,
-            #     caption=text,
-            #     buttons=buttons,
-            #     parse_mode="HTML",
-            #     attributes=[
-            #         types.DocumentAttributeFilename(file_name='Started.gif'),
-            #         types.DocumentAttributeAnimated()
-            #     ]
-            # )
-            
-            await self.client.send_message(
-                event.chat_id,
-                text,
-                buttons=buttons,
-                parse_mode="HTML",
-                file=file_to_send,
-                attributes=[
-                    types.DocumentAttributeVideo(
-                        duration=0, w=0, h=0, supports_streaming=True
+            try:
+                await self.client.send_message(
+                    event.chat_id,
+                    text,
+                    buttons=buttons,
+                    parse_mode="HTML",
+                    file=file_to_send,
+                    attributes=[
+                        types.DocumentAttributeVideo(
+                            duration=0, w=0, h=0, supports_streaming=True
+                        )
+                    ],
+                )
+            except Exception as send_error:
+                # Если кэшированное видео не работает, пробуем URL
+                if use_cached:
+                    logger.warning(f"Failed to send cached video: {send_error}, falling back to URL")
+                    # Очищаем невалидный кэш
+                    self.bot.storage.delete_start_video()
+                    # Повторная попытка с URL
+                    await self.client.send_message(
+                        event.chat_id,
+                        text,
+                        buttons=buttons,
+                        parse_mode="HTML",
+                        file="https://cdn.giveaway.tools.tg/assets/Started.gif",
+                        attributes=[
+                            types.DocumentAttributeVideo(
+                                duration=0, w=0, h=0, supports_streaming=True
+                            )
+                        ],
                     )
-                ],
-            )
+                else:
+                    # Если это уже была попытка с URL, пробрасываем ошибку дальше
+                    raise
         except Exception as e:
             logger.error(f"Error handling start command: {str(e)}") 

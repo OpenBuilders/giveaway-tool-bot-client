@@ -166,3 +166,7 @@ class RedisStorage:
         """Get start video data from Redis"""
         data = self.redis_client.get("bot:start_video")
         return json.loads(data) if data else None
+
+    def delete_start_video(self) -> None:
+        """Delete start video cache from Redis"""
+        self.redis_client.delete("bot:start_video")
